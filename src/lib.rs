@@ -4,6 +4,8 @@ use wasm_bindgen::prelude::*;
 use web_sys::console;
 use wasm_bindgen::JsCast;
 
+use rand::prelude::*;
+
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
 //
@@ -16,7 +18,14 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 /*
 　三角形を描画する
 */
-fn draw_triangle(context: &web_sys::CanvasRenderingContext2d, points: [(f64, f64); 3]){
+fn draw_triangle(context: &web_sys::CanvasRenderingContext2d, points: [(f64, f64); 3], 
+                    color: (u8, u8, u8),) {
+    
+    // 符号なし整数のタプルをfill_styleの形式にフォーマット変換
+    let color_str = format!("rgb({}, {}, {}", color.0, color.1, color.2);
+    context.set_fill_style(&wasm_bindgen::JsValue::from_str(&color_str));
+
+    // 描画
     let [top, left, right] = points;
     context.move_to(top.0, top.1);
     context.begin_path();
@@ -25,15 +34,17 @@ fn draw_triangle(context: &web_sys::CanvasRenderingContext2d, points: [(f64, f64
     context.line_to(top.0, top.1);
     context.close_path();
     context.stroke();
+    context.fill();
 }
 
 /*
 　座標を指定し、三角形を描画する
 */
-fn sierpinski(context: &web_sys::CanvasRenderingContext2d, points: [(f64, f64); 3], depth: u8) {
+fn sierpinski(context: &web_sys::CanvasRenderingContext2d, points: [(f64, f64); 3], 
+                color: (u8, u8, u8), depth: u8) {
 
     // 外枠の三角形を描画する
-    draw_triangle(&context, points);
+    draw_triangle(&context, points, color);
 
     // 各座標の指定
     let [top, left, right] = points;
@@ -43,16 +54,27 @@ fn sierpinski(context: &web_sys::CanvasRenderingContext2d, points: [(f64, f64); 
 
     // 三角形を描画する
     if depth > 0 {
+
+        let mut rng = thread_rng();
+
+        let next_color = (
+            rng.gen_range(0..255),
+            rng.gen_range(0..255),
+            rng.gen_range(0..255),
+        );
+
         let left_middle = midpoint(top, left);
         let right_middle = midpoint(top, right);
         let bottom_middle = midpoint(left, right);
-        sierpinski(&context, [top, left_middle, right_middle], depth);
-        sierpinski(&context, [left_middle, left, bottom_middle], depth);
-        sierpinski(&context, [right_middle, bottom_middle, right], depth);
+        sierpinski(&context, [top, left_middle, right_middle], next_color, depth);
+        sierpinski(&context, [left_middle, left, bottom_middle], next_color, depth);
+        sierpinski(&context, [right_middle, bottom_middle, right], next_color, depth);
     }
 }
 
-// 三角形の中心点を割出す
+/*
+　三角形の中心点を割出す
+*/
 fn midpoint(point_1: (f64, f64), point_2: (f64, f64)) -> (f64, f64) {
     ((point_1.0 + point_2.0) / 2.0, (point_1.1 + point_2.1) / 2.0)
 }
@@ -83,7 +105,6 @@ pub fn main_js() -> Result<(), JsValue> {
         .unwrap();
 
     // 描画する
-    sierpinski(&context, [(300.0, 0.0), (0.0, 600.0), (600.0, 600.0)], 2);
-
+    sierpinski(&context, [(300.0, 0.0), (0.0, 600.0), (600.0, 600.0)], (0, 255, 0), 5);
     Ok(())
 }
