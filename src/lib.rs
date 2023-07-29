@@ -10,9 +10,9 @@ use rand::prelude::*;
 // allocator.
 //
 // If you don't want to use `wee_alloc`, you can safely delete this.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+// #[cfg(feature = "wee_alloc")]
+// #[global_allocator]
+// static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 
 /*
@@ -105,6 +105,20 @@ pub fn main_js() -> Result<(), JsValue> {
         .unwrap();
 
     // 描画する
-    sierpinski(&context, [(300.0, 0.0), (0.0, 600.0), (600.0, 600.0)], (0, 255, 0), 5);
+    wasm_bindgen_futures::spawn_local(async move {
+        let (success_tx, success_rx) 
+                = futures::channel::oneshot::channel::<()>();
+        let image = web_sys::HtmlImageElement::new().unwrap();
+        let callback = Closure::once(move || {
+            success_tx.send(());
+            web_sys::console::log_1(&JsValue::from_str("loaded"));
+        });
+        image.set_onload(Some(callback.as_ref().unchecked_ref()));
+        image.set_src("Idle (1).png");
+        success_rx.await;
+        context.draw_image_with_html_image_element(&image, 0.0, 0.0);
+        sierpinski(&context, [(300.0, 0.0), (0.0, 600.0), (600.0, 600.0)], (0, 255, 0), 5);
+    });
+
     Ok(())
 }
